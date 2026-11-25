@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sideboard „Holm" – AR-Prototyp</title>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; font-family: system-ui, -apple-system, sans-serif; background: #f2efe9; }
+    model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
+    .panel {
+      position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center;
+      background: rgba(255,255,255,.92); padding: 10px 12px; border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.15); max-width: calc(100% - 32px);
+    }
+    .panel button {
+      border: 1px solid #c9bfb0; background: #fff; border-radius: 999px;
+      padding: 9px 14px; font-size: 15px; cursor: pointer; color: #2b2622;
+    }
+    .panel button.active { background: #2b2622; color: #fff; border-color: #2b2622; }
+    .swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; vertical-align: -2px; margin-right: 6px; border: 1px solid rgba(0,0,0,.2); }
+    .sep { width: 1px; align-self: stretch; background: #ddd; }
+    .title {
+      position: absolute; top: 14px; left: 16px; background: rgba(255,255,255,.92);
+      padding: 8px 12px; border-radius: 10px; font-size: 14px; color: #2b2622;
+    }
+    .title b { display: block; font-size: 16px; }
+    #ar-button {
+      position: absolute; top: 14px; right: 16px; border: 0; border-radius: 999px;
+      background: #2b2622; color: #fff; padding: 10px 16px; font-size: 15px;
+    }
+    /* hide our own UI while placing the model in WebXR, show it again once placed */
+    model-viewer[ar-status="session-started"] .panel { display: none; }
+  </style>
+</head>
+<body>
+  <model-viewer
+    id="mv"
+    src="model.glb"
+    alt="3D-Modell eines Sideboards im Mid-Century-Stil aus Eiche mit zwei Türen"
+    ar
+    ar-modes="webxr scene-viewer quick-look"
+    ar-scale="fixed"
+    ar-placement="floor"
+    camera-controls
+    touch-action="pan-y"
+    auto-rotate
+    shadow-intensity="1"
+    exposure="1.05"
+    camera-orbit="30deg 70deg 2.6m"
+  >
+    <div class="title"><b>Sideboard „Holm"</b>100 × 45 × 82 cm · Maßstab 1:1</div>
+    <button slot="ar-button" id="ar-button">In meinem Raum ansehen</button>
+
+    <div class="panel">
+      <button id="doors">Türen öffnen</button>
+      <span class="sep"></span>
+      <button class="variant active" data-variant="oak"><span class="swatch" style="background:#d9b98f"></span>Eiche</button>
+      <button class="variant" data-variant="walnut"><span class="swatch" style="background:#6b4630"></span>Nussbaum</button>
+      <button class="variant" data-variant="white"><span class="swatch" style="background:#f3f1ec"></span>Weiß</button>
+    </div>
+  </model-viewer>
+
+  <script type="module">
+    const mv = document.getElementById('mv');
+    const doorsBtn = document.getElementById('doors');
+    let open = false;
+    let woodTexture = null;
+
+    const variants = {
+      oak:    { factor: [1, 1, 1, 1],          texture: true,  rough: 0.55 },
+      walnut: { factor: [0.36, 0.22, 0.15, 1], texture: true,  rough: 0.5  },
+      white:  { factor: [0.95, 0.94, 0.91, 1], texture: false, rough: 0.35 },
+    };
+
+    mv.addEventListener('load', () => {
+      const wood = mv.model.getMaterialByName('Wood');
+      woodTexture = wood.pbrMetallicRoughness.baseColorTexture.texture;
+    });
+
+    // Doors: play "Open" or "Close" once; model-viewer holds the last frame.
+    doorsBtn.addEventListener('click', () => {
+      open = !open;
+      mv.autoRotate = false;
+      mv.animationName = open ? 'Open' : 'Close';
+      mv.currentTime = 0;
+      mv.play({ repetitions: 1 });
+      doorsBtn.textContent = open ? 'Türen schließen' : 'Türen öffnen';
+      doorsBtn.classList.toggle('active', open);
+    });
+
+    // Colour / finish variants
+    document.querySelectorAll('.variant').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const v = variants[btn.dataset.variant];
+        const wood = mv.model.getMaterialByName('Wood');
+        const pbr = wood.pbrMetallicRoughness;
+        pbr.setBaseColorFactor(v.factor);
+        pbr.setRoughnessFactor(v.rough);
+        pbr.baseColorTexture.setTexture(v.texture ? woodTexture : null);
+        document.querySelectorAll('.variant').forEach(b => b.classList.toggle('active', b === btn));
+      });
+    });
+  </script>
+</body>
+</html>
